@@ -1,0 +1,14 @@
+{
+  "pedido_id": "PED-1001",
+  "cliente": {"primeiro_nome": "Ana"},
+  "endereco": {
+    "logradouro": "Rua Exemplo",
+    "numero": "100",
+    "cidade": "Cidade Exemplo"
+  },
+  "itens": [
+    {"sku": "PIZZA_MARGUERITA", "quantidade": 1},
+    {"sku": "SUCO_LARANJA", "quantidade": 2}
+  ],
+  "pagamento": {"resultado_simulado": "APROVADO"}
+}

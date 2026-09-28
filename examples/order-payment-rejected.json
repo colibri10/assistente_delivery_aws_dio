@@ -1,0 +1,7 @@
+{
+  "pedido_id": "PED-1003",
+  "cliente": {"primeiro_nome": "Caio"},
+  "endereco": {"logradouro": "Rua Exemplo", "numero": "300", "cidade": "Cidade Exemplo"},
+  "itens": [{"sku": "HAMBURGUER", "quantidade": 1}],
+  "pagamento": {"resultado_simulado": "RECUSADO"}
+}

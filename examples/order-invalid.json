@@ -1,0 +1,7 @@
+{
+  "pedido_id": "PED-1002",
+  "cliente": {"primeiro_nome": "Bia"},
+  "endereco": {"logradouro": "Rua Exemplo", "numero": "200", "cidade": "Cidade Exemplo"},
+  "itens": [{"sku": "PRODUTO_INEXISTENTE", "quantidade": 1}],
+  "pagamento": {"resultado_simulado": "APROVADO"}
+}

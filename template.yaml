@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Assistente demonstrativo de delivery com Step Functions e Amazon Bedrock
+
+Globals:
+  Function:
+    Runtime: python3.12
+    CodeUri: src/
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  ValidateOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.validate_order
+
+  ProcessPaymentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.process_payment
+
+  UpdateStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.update_status
+
+  FinalizeOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.finalize_order
+
+  DeliveryStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: statemachine/delivery.asl.json
+      DefinitionSubstitutions:
+        ValidateOrderArn: !GetAtt ValidateOrderFunction.Arn
+        ProcessPaymentArn: !GetAtt ProcessPaymentFunction.Arn
+        UpdateStatusArn: !GetAtt UpdateStatusFunction.Arn
+        FinalizeOrderArn: !GetAtt FinalizeOrderFunction.Arn
+        BedrockModelId: amazon.nova-lite-v1:0
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource:
+                - !GetAtt ValidateOrderFunction.Arn
+                - !GetAtt ProcessPaymentFunction.Arn
+                - !GetAtt UpdateStatusFunction.Arn
+                - !GetAtt FinalizeOrderFunction.Arn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0'
+
+Outputs:
+  DeliveryStateMachineArn:
+    Description: ARN da máquina de estados do assistente de delivery
+    Value: !Ref DeliveryStateMachine

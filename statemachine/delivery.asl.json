@@ -1,0 +1,134 @@
+{
+  "Comment": "Fluxo demonstrativo: pagamento e entrega simulados; Bedrock redige apenas a mensagem.",
+  "StartAt": "ValidarPedido",
+  "States": {
+    "ValidarPedido": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ValidateOrderArn}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.validation_task",
+      "Next": "PedidoValido"
+    },
+    "PedidoValido": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.validation_task.Payload.valid",
+          "BooleanEquals": true,
+          "Next": "PagamentoSimulado"
+        }
+      ],
+      "Default": "GerarResposta"
+    },
+    "PagamentoSimulado": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ProcessPaymentArn}",
+        "Payload.$": "$.validation_task.Payload"
+      },
+      "ResultPath": "$.payment_task",
+      "Next": "PagamentoAprovado"
+    },
+    "PagamentoAprovado": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.payment_task.Payload.approved",
+          "BooleanEquals": true,
+          "Next": "AtualizarEmPreparo"
+        }
+      ],
+      "Default": "GerarResposta"
+    },
+    "AtualizarEmPreparo": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${UpdateStatusArn}",
+        "Payload": {
+          "order_id.$": "$.validation_task.Payload.order.order_id",
+          "new_status": "EM_PREPARO",
+          "history": []
+        }
+      },
+      "ResultPath": "$.status_preparing",
+      "Next": "AtualizarSaiuParaEntrega"
+    },
+    "AtualizarSaiuParaEntrega": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${UpdateStatusArn}",
+        "Payload": {
+          "order_id.$": "$.validation_task.Payload.order.order_id",
+          "new_status": "SAIU_PARA_ENTREGA",
+          "history.$": "$.status_preparing.Payload.history"
+        }
+      },
+      "ResultPath": "$.status_out_for_delivery",
+      "Next": "AtualizarEntregaSimulada"
+    },
+    "AtualizarEntregaSimulada": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${UpdateStatusArn}",
+        "Payload": {
+          "order_id.$": "$.validation_task.Payload.order.order_id",
+          "new_status": "ENTREGA_SIMULADA",
+          "history.$": "$.status_out_for_delivery.Payload.history"
+        }
+      },
+      "ResultPath": "$.status_delivered",
+      "Next": "PersonalizarMensagem"
+    },
+    "PersonalizarMensagem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "${BedrockModelId}",
+        "ContentType": "application/json",
+        "Accept": "application/json",
+        "Body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "text.$": "States.Format('Escreva em português do Brasil uma frase curta e cordial de agradecimento para {} pelos itens {}. Trata-se de simulação de delivery. Não afirme que houve entrega real, não invente prazo, preço, promoção nem dados do pedido. Responda só com a frase.', $.validation_task.Payload.order.first_name, $.validation_task.Payload.order.items_summary)"
+                }
+              ]
+            }
+          ],
+          "inferenceConfig": {
+            "maxTokens": 100,
+            "temperature": 0.2
+          }
+        }
+      },
+      "ResultPath": "$.bedrock",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.bedrock_error",
+          "Next": "GerarResposta"
+        }
+      ],
+      "Next": "GerarResposta"
+    },
+    "GerarResposta": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${FinalizeOrderArn}",
+        "Payload.$": "$"
+      },
+      "OutputPath": "$.Payload",
+      "End": true
+    }
+  }
+}
